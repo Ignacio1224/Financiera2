@@ -14,19 +14,20 @@ GO
 
 
 
-/* tr_transfer */
-CREATE TRIGGER tr_transfer ON Movimientos
-    BEFORE INSERT UPDATE
-BEGIN
-
+/* trg_transfer */
+CREATE TRIGGER trg_transfer ON Movimientos
+    INSTEAD OF INSERT, UPDATE
+AS BEGIN
+    SET NOCOUNT ON;
+    SELECT * FROM Movimiento
 END
 
 
 
 /* tr_modif_mov */
 CREATE TRIGGER tr_modif_mov ON Movimiento
-    BEFORE UPDATE
-BEGIN
+    INSTEAD OF UPDATE
+AS BEGIN
     /* Crea la tabla Auditoria si no existe */
     IF (EXISTS (
             SELECT * 
@@ -44,7 +45,7 @@ BEGIN
             idCliente INT NOT NULL,
             nombreCliente VARCHAR (255) NOT NULL,
             importeAnterior DECIMAL (18, 2) NOT NULL,
-            importeActual DECIMAL (18, 2) NOT NULL
+            importeActual DECIMAL (18, 2) NOT NULL,
 
             ADD CONSTRAINT pk_audit PRIMARY KEY (idAudit),
             ADD CONSTRAINT fk_movim FOREIGN KEY (idMovim) REFERENCES Movimiento (idMovim),

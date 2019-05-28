@@ -29,7 +29,7 @@ GO
 
 
 /* Agregar la columna 'SaldoCuenta' en la tabla 'CUENTAS' */
-ALTER TABLE CUENTAS ADD SaldoCuenta DECIMAL(18, 2);
+-- ALTER TABLE CUENTAS ADD SaldoCuenta DECIMAL(18, 2);
 /* generarSaldos */
 CREATE PROCEDURE generarSaldos
     @msj VARCHAR = 'Ha ocurrido un error' OUTPUT
@@ -44,7 +44,7 @@ GO
 CREATE PROCEDURE sobregiroClienteUSD
     @id_cliente INT = 0,
     @nombre_cliente VARCHAR (255) = 'NULL' OUTPUT,
-    @sobregiro = DECIMAL (18, 2) = 0 OUTPUT
+    @sobregiro DECIMAL (18, 2) = 0 OUTPUT
 AS BEGIN
     SELECT @id_cliente;
 END
