@@ -24,27 +24,17 @@ USE OBLBD2;
 GO
 
 --(2)(a)
-/* trg_transfer 
-CREATE TRIGGER trg_transfer ON Transferencia
-INSTEAD OF INSERT
-AS BEGIN
-  IF((SELECT TipoTransfer FROM INSERTED) = 'E')
-	BEGIN
-		INSERT INTO Transferencia SELECT I.FchTransfer, I.IdMovim, I.TipoTransfer, NULL , I.BancoDestino , 'Auditoria'
-									FROM INSERTED I
-		
-	END
-   
-
-END
-GO
+/*El trigger A no puede ser realizado debido a que la letra es inconsistente.
+-En caso de que el INSERT fuese abordado desde la tabla Movimiento estaría faltando la información que especifica
+si es de tipo INTERNA o EXTERNA.
+-En caso que el INSERT se diese sobre la tabla Transferencia, sucedería que una tupla de dicha tabla nos pide que
+ le ingresemos un IdMovimiento, cosa que no habría forma de obtener si no es que existe previo 
+ un insert en Movimiento antes ).
 */
 
 
 --(2)(b)
 --trg_modif_mov
-
-
 CREATE TRIGGER trg_modif_mov ON Movimiento
 AFTER UPDATE
 AS BEGIN
@@ -111,28 +101,12 @@ AS BEGIN
 											JOIN Movimiento M ON Cu.IdCuenta = M.IdCuenta
 												WHERE M.FchMovim <= ALL(SELECT Mv.FchMovim FROM Movimiento Mv));
 
-	--Desactivamos la PK para poder reingresar las cuentas con mismo IdCuenta
-	ALTER TABLE Cuenta DROP CONSTRAINT PK_Cuenta_IdCuenta;
-	--Desactivamos el Identity para que no encaje los numeros q se le antoje 
-	SET IDENTITY_INSERT Cuenta OFF;
 
-	--Duplicamos solo las cuentas que tienen el ID de la sucursal guardada en DELETED ( le colocamos el ID de la sucursal mas vieja)
-	INSERT INTO Cuenta SELECT C.IdCuenta, C.IdTipo, C.IdMoneda, @sucursal_mas_vieja, C.IdCliente, C.SaldoCuenta FROM Cuenta C
-																									WHERE C.IdSucursal = ( SELECT D.IdSucursal FROM DELETED D); 
+	UPDATE Cuenta SET IdSucursal = @sucursal_mas_vieja 
+	WHERE IdSucursal = (SELECT D.IdSucursal FROM DELETED D);
 
-	--Borramos todas las cuentas que posean el IdSucursal que pretendemos borrar (para poder borrar la sucursal precisamos que no hayan datos FK)
-	DELETE FROM Cuenta WHERE IdSucursal = (SELECT D.IdSucursal FROM DELETED D);
-
-	--Volvemos a crearle la PK
-	ALTER TABLE Cuenta ADD CONSTRAINT PK_Cuenta_IdCuenta PRIMARY KEY (IdCuenta);
-	--Volvemos a activar el Identity
-	SET IDENTITY_INSERT Cuenta ON;
-
-	--Se borra la sucursal ahora que no tiene datos FK:
 	DELETE FROM Sucursal WHERE IdSucursal = (SELECT D.IdSucursal FROM DELETED D);
-
-	/* Navegando por aguas turbias.. Pero bueno q se le v ase. */ 		
-	/***j3j0***/																							
+																						
 END
 GO
 
