@@ -66,7 +66,7 @@ GO
  --(1)(b)
  /*generarSaldos*/
 CREATE PROCEDURE generarSaldos
-@cuenta INT /* Cuenta a generar saldo. */
+	@cuenta INT /* Cuenta a generar saldo. */
 AS BEGIN
 	DECLARE @saldo_total DECIMAL (18, 2) = 0;
 
@@ -75,7 +75,7 @@ AS BEGIN
 							WHERE 
 								Me.TipoMovim = 'E' 
 								AND	Me.IdCuenta = @cuenta 
-							GROUP BY Me.IdCuenta ) - (SELECT SUM (Ms.ImporteMovim) 
+							GROUP BY Me.IdCuenta ) - (	SELECT SUM (Ms.ImporteMovim) 
 														FROM Movimiento Ms 
 															WHERE 
 																Ms.TipoMovim <> 'E' 

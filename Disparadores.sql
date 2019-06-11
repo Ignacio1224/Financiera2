@@ -1,8 +1,9 @@
-/* Procedimientos Almacenados */
+/* Disparadores */
 
 /* Autor: Ignacio Cabrera - Santiago Manzoni */
 
 /* NOTA: Se asume que el año corriente es el actual. */
+
 
 /*
   CREATE TABLE AUDITORIA
@@ -58,18 +59,21 @@ GO
 --(2)(c)
 /* trg_Denegar_Salida_Sin_Saldo */
 CREATE TRIGGER trg_Denegar_Salida_Sin_Saldo ON Movimiento
-    AFTER INSERT
+    AFTER INSERT, UPDATE
 AS BEGIN
 
 	DECLARE @saldo_cuenta DECIMAL(18,2) = ( SELECT SUM(M.ImporteMovim)
-												FROM Movimiento M, INSERTED I
-													WHERE M.IdCuenta = I.IdCuenta
-													AND M.TipoMovim = 'E') - (SELECT SUM(M.ImporteMovim)
-																					FROM Movimiento M, INSERTED I
-																						WHERE M.IdCuenta = I.IdCuenta
-																						AND M.TipoMovim <> 'E');
+											FROM Movimiento M, INSERTED I
+											WHERE 
+												M.IdCuenta = I.IdCuenta
+												AND M.TipoMovim = 'E') - (	SELECT SUM(M.ImporteMovim)
+																			FROM Movimiento M, INSERTED I
+																			WHERE 
+																				M.IdCuenta = I.IdCuenta
+																				AND M.TipoMovim <> 'E'
+																			);
 
-    IF((SELECT I.ImporteMovim FROM INSERTED I) > @saldo_cuenta)
+    IF((SELECT I.TipoMovim FROM INSERTED I) <> 'E' AND (SELECT I.ImporteMovim FROM INSERTED I) > @saldo_cuenta)
 		BEGIN
 			ROLLBACK;
 		END   
@@ -81,13 +85,13 @@ GO
 CREATE TRIGGER trg_control_cuenta ON Cuenta
     AFTER INSERT
 AS BEGIN
-        IF EXISTS( SELECT 1 FROM Cuenta C, INSERTED I
-					WHERE C.IdCliente = I.IdCliente
-					AND C.IdMoneda = I.IdMoneda
-					AND C.IdSucursal = I.IdSucursal )
-			BEGIN
-				ROLLBACK;
-			END
+        IF EXISTS(	SELECT 1 FROM Cuenta C, INSERTED I
+				   	WHERE C.IdCliente = I.IdCliente
+				   	AND C.IdMoneda = I.IdMoneda
+				   	AND C.IdSucursal = I.IdSucursal )
+		BEGIN
+			ROLLBACK;
+		END
     END
 GO
 
@@ -96,23 +100,23 @@ GO
 CREATE TRIGGER trg_borrar_sucursal ON Sucursal
     INSTEAD OF DELETE
 AS BEGIN
-    DECLARE @sucursal_mas_vieja CHAR(5) = (SELECT S.IdSucursal FROM Sucursal S 
-											JOIN Cuenta Cu ON Cu.IdSucursal = S.IdSucursal
-											JOIN Movimiento M ON Cu.IdCuenta = M.IdCuenta
-												WHERE M.FchMovim <= ALL(SELECT Mv.FchMovim FROM Movimiento Mv));
+
+	IF EXISTS(SELECT 1 FROM Sucursal AS S WHERE S.IdSucursal = (SELECT D.IdSucursal FROM DELETED AS D))
+	BEGIN
+		DECLARE @sucursal_mas_vieja CHAR(5) = (	SELECT S.IdSucursal FROM Sucursal S 
+												JOIN Cuenta Cu ON Cu.IdSucursal = S.IdSucursal
+												JOIN Movimiento M ON Cu.IdCuenta = M.IdCuenta
+												WHERE M.FchMovim <= ALL(SELECT Mv.FchMovim 
+																		FROM Movimiento Mv)
+												);
 
 
-	UPDATE Cuenta SET IdSucursal = @sucursal_mas_vieja 
-	WHERE IdSucursal = (SELECT D.IdSucursal FROM DELETED D);
+		UPDATE Cuenta SET IdSucursal = @sucursal_mas_vieja 
+		WHERE IdSucursal = (SELECT D.IdSucursal FROM DELETED D);
 
-	DELETE FROM Sucursal WHERE IdSucursal = (SELECT D.IdSucursal FROM DELETED D);
-																						
+		DELETE FROM Sucursal WHERE IdSucursal = (	SELECT D.IdSucursal 
+													FROM DELETED D
+												);
+	END																				
 END
 GO
-
-/*
-SELECT *
-FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-WHERE TABLE_NAME = 'Cuenta'
-*/
-
