@@ -13,21 +13,31 @@ GO
 CREATE FUNCTION verSaldoCuenta (@cuenta INT, @fecha DATE)
     RETURNS DECIMAL (18, 2)
 AS BEGIN
-    DECLARE @saldo DECIMAL (18, 2) = ( 	SELECT SUM(M.ImporteMovim)
-										FROM Movimiento M
-										WHERE 
-											M.IdCuenta = @cuenta
-											AND M.TipoMovim = 'E'
-											AND M.FchMovim <= @fecha ) - (	SELECT SUM(M.ImporteMovim)
-																			FROM Movimiento M
-																			WHERE 
-																				M.IdCuenta = @cuenta
-																				AND M.TipoMovim <> 'E'
-																				AND M.FchMovim <= @fecha);
+    DECLARE @saldo DECIMAL (18, 2) = (ISNULL ((	SELECT SUM(M.ImporteMovim)
+												FROM Movimiento M
+												WHERE 
+													M.IdCuenta = @cuenta
+													AND M.TipoMovim = 'E'
+													AND M.FchMovim <= @fecha 
+
+											), 0) - (ISNULL((	SELECT SUM(M.ImporteMovim)
+																FROM Movimiento M
+																WHERE 
+																	M.IdCuenta = @cuenta
+																	AND M.TipoMovim <> 'E'
+																	AND M.FchMovim <= @fecha
+															  ), 0)));
 
     RETURN @saldo;
 END
 GO
+--DROP FUNCTION verSaldoCuenta
+--DECLARE @ret DECIMAL(18, 2);
+--DECLARE @c INT = 1;
+--DECLARE @h DATE = GETDATE();
+
+--SET @ret = [dbo].verSaldoCuenta (@c, @h)
+--PRINT CONVERT (VARCHAR(20), @ret)
 
 --(1)(d)
 /* maximoSaldoCliente */
@@ -87,7 +97,7 @@ AS BEGIN
 												AND	Me.IdCuenta = C.IdCliente
 												AND C.IdCliente = @id_cliente 
 												AND C.IdMoneda = M.IdMoneda
-												AND M.SimboloMoneda = 'U$D'
+												AND M.SimboloMoneda = 'US$'
 											GROUP BY Me.IdCuenta) - (	SELECT SUM (Ms.ImporteMovim) 
 																		FROM Movimiento Ms, Cuenta C, Moneda M
 																		WHERE 
@@ -95,7 +105,7 @@ AS BEGIN
 																			AND	Ms.IdCuenta = C.IdCliente
 																			AND C.IdCliente = @id_cliente 
 																			AND C.IdMoneda = M.IdMoneda
-																			AND M.SimboloMoneda = 'U$D'
+																			AND M.SimboloMoneda = 'US$'
 																		GROUP BY Ms.IdCuenta);
 
 					-- Nombre del cliente.
@@ -109,7 +119,7 @@ AS BEGIN
 					ELSE
 						--El sobregiro solo existe cuando la resta de las entradas y las salidas da números negativos.
 						BEGIN
-							SET @salida = 'Cliente: ' + @nom_cli + ', Sobregiro actual: '+ ABS(@sobregiro) +' U$D';
+							SET @salida = 'Cliente: ' + @nom_cli + ', Sobregiro actual: '+ ABS(@sobregiro) +' US$';
 						END
 				END
 		
