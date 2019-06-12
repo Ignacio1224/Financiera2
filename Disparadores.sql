@@ -56,22 +56,23 @@ AS BEGIN
 END
 GO
 
+
 --(2)(c)
 /* trg_Denegar_Salida_Sin_Saldo */
 CREATE TRIGGER trg_Denegar_Salida_Sin_Saldo ON Movimiento
     AFTER INSERT, UPDATE
 AS BEGIN
 
-	DECLARE @saldo_cuenta DECIMAL(18,2) = ( SELECT SUM(M.ImporteMovim)
-											FROM Movimiento M, INSERTED I
-											WHERE 
-												M.IdCuenta = I.IdCuenta
-												AND M.TipoMovim = 'E') - (	SELECT SUM(M.ImporteMovim)
-																			FROM Movimiento M, INSERTED I
-																			WHERE 
-																				M.IdCuenta = I.IdCuenta
-																				AND M.TipoMovim <> 'E'
-																			);
+	DECLARE @saldo_cuenta DECIMAL(18,2) = ISNULL( (SELECT SUM(M.ImporteMovim)
+													FROM Movimiento M, INSERTED I
+													WHERE 
+														M.IdCuenta = I.IdCuenta
+														AND M.TipoMovim = 'E'), 0 ) - ISNULL( (SELECT SUM(M.ImporteMovim)
+																								FROM Movimiento M, INSERTED I
+																								WHERE 
+																									M.IdCuenta = I.IdCuenta
+																									AND M.TipoMovim <> 'E'
+																								), 0);
 
     IF((SELECT I.TipoMovim FROM INSERTED I) <> 'E' AND (SELECT I.ImporteMovim FROM INSERTED I) > @saldo_cuenta)
 		BEGIN

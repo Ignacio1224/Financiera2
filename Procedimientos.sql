@@ -7,6 +7,8 @@
 USE OBLBD2;
 GO
 
+
+
 --(1)(a)
 /* SaldosDeCuentaCliente */
 CREATE PROCEDURE SaldosDeCuentaCliente
@@ -16,45 +18,35 @@ CREATE PROCEDURE SaldosDeCuentaCliente
     @saldo_anterior DECIMAL (18, 2) = 0 OUTPUT, /* Saldo anterior a la fecha de fin */
     @saldo_actual DECIMAL (18, 2) = 0 OUTPUT /* Saldo actual a la fecha de fin */
 AS BEGIN
-	DECLARE @entradas_act DECIMAL (18, 2) = (	SELECT SUM (Me.ImporteMovim)
-												FROM Movimiento Me 
-												WHERE 
-													Me.TipoMovim = 'E' 
-													AND Me.IdCuenta = @cuenta
-													AND Me.FchMovim BETWEEN @fch_inicio AND @fch_fin
-												GROUP BY Me.IdCuenta );
-
-	DECLARE @no_entradas_act DECIMAL (18, 2) = (	SELECT SUM (Ms.ImporteMovim) 
-													FROM Movimiento Ms 
-													WHERE 
-														Ms.TipoMovim <> 'E' 
-														AND Ms.IdCuenta = @cuenta
-
-														AND Ms.FchMovim BETWEEN @fch_inicio AND @fch_fin 
-													GROUP BY Ms.IdCuenta
-													  );
-
-	DECLARE @entradas_ant DECIMAL (18, 2) = (	SELECT SUM (Me.ImporteMovim) 
-												FROM Movimiento Me 
-												WHERE
-													Me.TipoMovim = 'E' 
-													AND Me.IdCuenta = @cuenta 
-													AND Me.FchMovim BETWEEN -53690 AND @fch_inicio 
-												GROUP BY Me.IdCuenta );
-	
-	DECLARE @no_entradas_ant DECIMAL (18, 2) = (	SELECT SUM (Ms.ImporteMovim) 
-													FROM Movimiento Ms 
-													WHERE 
-														Ms.TipoMovim <> 'E' 
-														AND Ms.IdCuenta = @cuenta
-														AND Ms.FchMovim BETWEEN -53690 AND @fch_inicio 
-													GROUP BY Ms.IdCuenta );
+	SET @saldo_actual  = ISNULL((SELECT SUM (Me.ImporteMovim)
+									FROM Movimiento Me 
+									WHERE 
+										Me.TipoMovim = 'E' 
+										AND Me.IdCuenta = @cuenta
+										AND Me.FchMovim BETWEEN @fch_inicio AND @fch_fin
+									GROUP BY Me.IdCuenta), 0 ) - ISNULL( (SELECT SUM (Ms.ImporteMovim) 
+																			FROM Movimiento Ms 
+																			WHERE 
+																				Ms.TipoMovim <> 'E' 
+																				AND Ms.IdCuenta = @cuenta
+																				AND Ms.FchMovim BETWEEN @fch_inicio AND @fch_fin 
+																			GROUP BY Ms.IdCuenta) , 0);
 
 
-	SET @saldo_actual  = ISNULL(@entradas_act, 0) - ISNULL(@no_entradas_act, 0);
-							
-	SET @saldo_anterior = ISNULL(@entradas_ant, 0) - ISNULL(@no_entradas_ant, 0);
 
+	SET @saldo_anterior = ISNULL( (SELECT SUM(Me.ImporteMovim) 
+									FROM Movimiento Me 
+									WHERE
+										Me.TipoMovim = 'E' 
+										AND Me.IdCuenta = @cuenta 
+										AND Me.FchMovim < @fch_inicio 
+									GROUP BY Me.IdCuenta) , 0 ) - ISNULL( (SELECT SUM (Ms.ImporteMovim) 
+																			FROM Movimiento Ms 
+																			WHERE 
+																				Ms.TipoMovim <> 'E' 
+																				AND Ms.IdCuenta = @cuenta
+																				AND Ms.FchMovim < @fch_inicio 
+																			GROUP BY Ms.IdCuenta) , 0 );
 END
 GO
 
@@ -67,25 +59,19 @@ GO
 CREATE PROCEDURE generarSaldos
 	@cuenta INT /* Cuenta a generar saldo. */
 AS BEGIN
-	DECLARE @saldo_total DECIMAL (18, 2) = 0;
+	
+	DECLARE @saldo DECIMAL (18, 2) = ISNULL((SELECT SUM(Me.ImporteMovim)
+											FROM Movimiento Me 
+											WHERE 
+												Me.TipoMovim = 'E' 
+												AND	Me.IdCuenta = @cuenta 
+											GROUP BY Me.IdCuenta ), 0) - ISNULL((SELECT SUM(Ms.ImporteMovim) 
+																				FROM Movimiento Ms 
+																				WHERE 
+																					Ms.TipoMovim <> 'E' 
+																					AND Ms.IdCuenta = @cuenta
+																				GROUP BY Ms.IdCuenta), 0);
 
-	DECLARE @entrada DECIMAL (18, 2) = ( SELECT SUM (Me.ImporteMovim)
-						FROM Movimiento Me 
-							WHERE 
-								Me.TipoMovim = 'E' 
-								AND	Me.IdCuenta = @cuenta 
-							GROUP BY Me.IdCuenta );
-
-	DECLARE @no_entrada DECIMAL (18, 2) = (	SELECT SUM (Ms.ImporteMovim) 
-														FROM Movimiento Ms 
-															WHERE 
-																Ms.TipoMovim <> 'E' 
-																AND Ms.IdCuenta = @cuenta
-															GROUP BY Ms.IdCuenta);
-
-	SET @saldo_total = ISNULL(@entrada, 0) - ISNULL(@no_entrada, 0);
-
-	UPDATE Cuenta SET SaldoCuenta = @saldo_total WHERE IdCuenta = @cuenta;
+	UPDATE Cuenta SET SaldoCuenta = @saldo WHERE IdCuenta = @cuenta;
 END
- 
 GO
